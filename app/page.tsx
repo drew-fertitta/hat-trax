@@ -74,10 +74,12 @@ export default function Home() {
       const { data: catData, error: catError } = await supabase.from('categories').select('*');
       if (catError) throw catError;
       
-      if (catData) {
-        const dbCategories: any = {};
+      if (catData && catData.length > 0) {
+        const dbCategories: any = { ...EMPTY_CATEGORIES };
         catData.forEach(c => { dbCategories[c.category_key] = c.options; });
         setCategories(dbCategories);
+      } else {
+        setCategories(EMPTY_CATEGORIES);
       }
 
       const { data: hatData, error: hatError } = await supabase.from('hats').select('*').order('created_at', { ascending: false });
@@ -147,9 +149,14 @@ export default function Home() {
     setRandomHat(filteredHats[Math.floor(Math.random() * filteredHats.length)]);
   };
 
-  // CATEGORY SYNC LOGIC (Patched with 'as any')
+  // CATEGORY SYNC LOGIC (Patched to Insert if missing)
   const syncCategoryToDB = async (catKey: string, newOptions: string[]) => {
-    await supabase.from('categories').update({ options: newOptions } as any).eq('category_key', catKey);
+    const { data } = await supabase.from('categories').select('id').eq('category_key', catKey);
+    if (data && data.length > 0) {
+      await supabase.from('categories').update({ options: newOptions } as any).eq('category_key', catKey);
+    } else {
+      await supabase.from('categories').insert([{ category_key: catKey, options: newOptions }] as any);
+    }
   };
 
   const learnNewCategories = async (formState: any) => {
@@ -217,7 +224,6 @@ export default function Home() {
     }
   };
 
-  // (Patched with 'as any')
   const toggleFavorite = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation(); 
     const hat = hats.find(h => h.id === id);
@@ -227,7 +233,6 @@ export default function Home() {
     await supabase.from('hats').update({ is_favorite: !hat.isFavorite } as any).eq('id', id);
   };
 
-  // (Patched with 'as any')
   const handleAddHat = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsUploading(true);
@@ -268,7 +273,6 @@ export default function Home() {
     if (pendingFiles.length <= 1) setIsModalOpen(false);
   };
 
-  // (Patched with 'as any')
   const handleAddAllUntagged = async () => {
     if (pendingFiles.length === 0) return;
     setIsUploading(true);
@@ -301,7 +305,6 @@ export default function Home() {
     setNewHatForm(EMPTY_HAT_FORM);
   };
 
-  // (Patched with 'as any')
   const handleSaveEditedHat = async (e: React.FormEvent) => {
     e.preventDefault();
     learnNewCategories(editingHat);
