@@ -50,14 +50,12 @@ export default function Home() {
 
   // --- 1. TRACK AUTHENTICATION SESSION SYSTEM ---
   useEffect(() => {
-    // Check initial user session state
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) fetchDatabase();
       else setIsLoading(false);
     });
 
-    // Continuously listen to login / logout events
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) fetchDatabase();
@@ -149,9 +147,9 @@ export default function Home() {
     setRandomHat(filteredHats[Math.floor(Math.random() * filteredHats.length)]);
   };
 
-  // CATEGORY SYNC LOGIC
+  // CATEGORY SYNC LOGIC (Patched with 'as any')
   const syncCategoryToDB = async (catKey: string, newOptions: string[]) => {
-    await supabase.from('categories').update({ options: newOptions }).eq('category_key', catKey);
+    await supabase.from('categories').update({ options: newOptions } as any).eq('category_key', catKey);
   };
 
   const learnNewCategories = async (formState: any) => {
@@ -219,15 +217,17 @@ export default function Home() {
     }
   };
 
+  // (Patched with 'as any')
   const toggleFavorite = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation(); 
     const hat = hats.find(h => h.id === id);
     if (!hat) return;
     setHats(hats.map(h => h.id === id ? { ...h, isFavorite: !h.isFavorite } : h));
     if (randomHat && randomHat.id === id) setRandomHat({ ...randomHat, isFavorite: !randomHat.isFavorite });
-    await supabase.from('hats').update({ is_favorite: !hat.isFavorite }).eq('id', id);
+    await supabase.from('hats').update({ is_favorite: !hat.isFavorite } as any).eq('id', id);
   };
 
+  // (Patched with 'as any')
   const handleAddHat = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsUploading(true);
@@ -254,7 +254,7 @@ export default function Home() {
       image: permanentImageUrl 
     };
 
-    const { data } = await supabase.from('hats').insert([dbHat]).select().single();
+    const { data } = await supabase.from('hats').insert([dbHat] as any).select().single();
     
     if (data) {
       const frontendHat = { ...dbHat, id: data.id, yearPurchased: data.year_purchased, isFavorite: data.is_favorite };
@@ -268,6 +268,7 @@ export default function Home() {
     if (pendingFiles.length <= 1) setIsModalOpen(false);
   };
 
+  // (Patched with 'as any')
   const handleAddAllUntagged = async () => {
     if (pendingFiles.length === 0) return;
     setIsUploading(true);
@@ -280,7 +281,7 @@ export default function Home() {
       image: imgUrl, rating: 0, is_favorite: false
     }));
 
-    const { data } = await supabase.from('hats').insert(dbHats).select();
+    const { data } = await supabase.from('hats').insert(dbHats as any).select();
     if (data) {
       const frontendHats = data.map(h => ({ ...h, yearPurchased: h.year_purchased, isFavorite: h.is_favorite }));
       setHats([...frontendHats, ...hats]);
@@ -300,6 +301,7 @@ export default function Home() {
     setNewHatForm(EMPTY_HAT_FORM);
   };
 
+  // (Patched with 'as any')
   const handleSaveEditedHat = async (e: React.FormEvent) => {
     e.preventDefault();
     learnNewCategories(editingHat);
@@ -323,7 +325,7 @@ export default function Home() {
     if (randomHat && randomHat.id === cleanedFrontendHat.id) setRandomHat(cleanedFrontendHat);
     setEditingHat(null);
 
-    await supabase.from('hats').update(dbHat).eq('id', editingHat.id);
+    await supabase.from('hats').update(dbHat as any).eq('id', editingHat.id);
   };
 
   const confirmDeleteHat = async () => {
