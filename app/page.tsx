@@ -149,7 +149,7 @@ export default function Home() {
     setRandomHat(filteredHats[Math.floor(Math.random() * filteredHats.length)]);
   };
 
-  // CATEGORY SYNC LOGIC (Patched to Insert if missing)
+  // CATEGORY SYNC LOGIC
   const syncCategoryToDB = async (catKey: string, newOptions: string[]) => {
     const { data } = await supabase.from('categories').select('id').eq('category_key', catKey);
     if (data && data.length > 0) {
@@ -515,7 +515,9 @@ export default function Home() {
                       <div className="flex flex-wrap gap-1 mt-auto pt-2">
                         {hat.type && <span className="text-[11px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-medium">{hat.type}</span>}
                         {hat.team && <span className="text-[11px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium">{hat.team}</span>}
+                        {hat.league && <span className="text-[11px] bg-red-50 text-red-700 px-2 py-0.5 rounded-full font-medium">{hat.league}</span>}
                         {hat.color && <span className="text-[11px] bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full font-medium">{hat.color}</span>}
+                        {hat.occasion && <span className="text-[11px] bg-pink-50 text-pink-700 px-2 py-0.5 rounded-full font-medium">{hat.occasion}</span>}
                         {hat.location && <span className="text-[11px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-medium">{hat.location}</span>}
                       </div>
                     </div>
@@ -580,9 +582,19 @@ export default function Home() {
                     <datalist id="colors-list">{categories.colors?.map((c: string) => <option key={c} value={c} />)}</datalist>
                   </div>
                   <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">League</label>
+                    <input list="leagues-list" value={newHatForm.league} onChange={(e) => setNewHatForm({...newHatForm, league: e.target.value})} className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none bg-white" placeholder="Type or select..." />
+                    <datalist id="leagues-list">{categories.leagues?.map((l: string) => <option key={l} value={l} />)}</datalist>
+                  </div>
+                  <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-1">Team</label>
                     <input list="teams-list" value={newHatForm.team} onChange={(e) => setNewHatForm({...newHatForm, team: e.target.value})} className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none bg-white" placeholder="Type or select..." />
                     <datalist id="teams-list">{categories.teams?.map((t: string) => <option key={t} value={t} />)}</datalist>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">Occasion</label>
+                    <input list="occasions-list" value={newHatForm.occasion} onChange={(e) => setNewHatForm({...newHatForm, occasion: e.target.value})} className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none bg-white" placeholder="Type or select..." />
+                    <datalist id="occasions-list">{categories.occasions?.map((o: string) => <option key={o} value={o} />)}</datalist>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-1">Location</label>
@@ -646,9 +658,19 @@ export default function Home() {
                     <datalist id="edit-colors-list">{categories.colors?.map((c: string) => <option key={c} value={c} />)}</datalist>
                   </div>
                   <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">League</label>
+                    <input list="edit-leagues-list" value={editingHat.league || ''} onChange={(e) => setEditingHat({...editingHat, league: e.target.value})} className="w-full border rounded-lg p-2 bg-white" />
+                    <datalist id="edit-leagues-list">{categories.leagues?.map((l: string) => <option key={l} value={l} />)}</datalist>
+                  </div>
+                  <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-1">Team</label>
                     <input list="edit-teams-list" value={editingHat.team || ''} onChange={(e) => setEditingHat({...editingHat, team: e.target.value})} className="w-full border rounded-lg p-2 bg-white" />
                     <datalist id="edit-teams-list">{categories.teams?.map((t: string) => <option key={t} value={t} />)}</datalist>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">Occasion</label>
+                    <input list="edit-occasions-list" value={editingHat.occasion || ''} onChange={(e) => setEditingHat({...editingHat, occasion: e.target.value})} className="w-full border rounded-lg p-2 bg-white" />
+                    <datalist id="edit-occasions-list">{categories.occasions?.map((o: string) => <option key={o} value={o} />)}</datalist>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-1">Location</label>
