@@ -491,7 +491,7 @@ export default function Home() {
         {randomHat && (
           <div className="bg-indigo-50 dark:bg-indigo-900/20 border-2 border-indigo-200 dark:border-indigo-800 rounded-2xl p-6 flex flex-col md:flex-row items-center gap-6 relative animate-in fade-in zoom-in duration-300 transition-colors">
             <button onClick={() => setRandomHat(null)} className="absolute top-4 right-4 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 text-xl font-bold">✕</button>
-            <img src={randomHat.image} alt={randomHat.name} className="w-32 h-32 object-cover rounded-xl shadow dark:shadow-black/50" />
+            <img src={randomHat.image} alt={randomHat.name} loading="lazy" className="w-32 h-32 object-cover rounded-xl shadow dark:shadow-black/50" />
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/40 px-2 py-1 rounded">Today's Pick</span>
@@ -567,12 +567,12 @@ export default function Home() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredHats.map((hat) => (
-                  <div key={hat.id} onClick={() => setEditingHat(hat)} className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border dark:border-slate-800 overflow-hidden hover:shadow-md hover:ring-2 hover:ring-indigo-400 transition flex flex-col relative cursor-pointer group">
+                  <div key={hat.id} onClick={() => setEditingHat(hat)} className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border dark:border-slate-800 overflow-hidden hover:shadow-md hover:ring-2 hover:ring-indigo-400 transition flex flex-col relative cursor-pointer group will-change-transform">
                     <button onClick={(e) => toggleFavorite(hat.id, e)} className={`absolute top-3 left-3 rounded-full w-8 h-8 flex items-center justify-center text-sm backdrop-blur-sm transition z-10 shadow-sm ${hat.isFavorite ? 'bg-white dark:bg-slate-800 scale-110' : 'bg-white/80 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-700 opacity-60 group-hover:opacity-100 sm:opacity-85'}`}>
                       {hat.isFavorite ? '❤️' : '🖤'}
                     </button>
                     <button onClick={(e) => { e.stopPropagation(); setHatToDelete(hat.id); }} className="absolute top-3 right-3 bg-slate-900/40 dark:bg-slate-900/70 hover:bg-red-500 dark:hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold backdrop-blur-sm transition z-10 opacity-0 group-hover:opacity-100 sm:opacity-100">✕</button>
-                    <img src={hat.image} alt={hat.name} className="w-full h-48 object-cover bg-slate-100 dark:bg-slate-800" />
+                    <img src={hat.image} alt={hat.name} loading="lazy" className="w-full h-48 object-cover bg-slate-100 dark:bg-slate-800" />
                     <div className="p-4 space-y-2 flex-1 flex flex-col">
                       <div className="flex justify-between items-start">
                         <div className="space-y-0.5">
