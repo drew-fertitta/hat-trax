@@ -33,6 +33,7 @@ export default function Home() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [viewMode, setViewMode] = useState<'all' | 'favorites' | 'untagged'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'newest' | 'rating' | 'year' | 'name'>('newest');
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string>>({
     type: '', color: '', league: '', team: '', occasion: '', location: ''
   });
@@ -127,7 +128,8 @@ export default function Home() {
           location: h.location || '',
           rating: h.rating || 0,
           isFavorite: h.is_favorite ?? false, 
-          yearPurchased: h.year_purchased || '' 
+          yearPurchased: h.year_purchased || '',
+          createdAt: h.created_at
         }));
         setHats(formattedHats);
       }
@@ -163,7 +165,6 @@ export default function Home() {
   };
 
   // --- DYNAMIC DROPDOWN SWEEP HELPER ---
-  // Captures database categories PLUS any ghost categories currently on hats
   const getDropdownOptions = (pluralKey: string, singularKey: string) => {
     const savedOptions = categories[pluralKey] || [];
     const hatOptions = hats.map(h => h[singularKey]).filter(val => val && val.trim() !== '');
@@ -171,7 +172,7 @@ export default function Home() {
     return Array.from(uniqueSet).sort((a: string, b: string) => a.toLowerCase().localeCompare(b.toLowerCase()));
   };
 
-  // --- FILTER & PAGINATION LOGIC ---
+  // --- FILTER, SORT & PAGINATION LOGIC ---
   const filteredHats = hats.filter(hat => {
     if (viewMode === 'favorites' && !hat.isFavorite) return false;
     
@@ -192,13 +193,19 @@ export default function Home() {
       if (!selectedFilters[key]) return true;
       return (hat as any)[key] === selectedFilters[key];
     });
+  }).sort((a, b) => {
+    if (sortBy === 'rating') return b.rating - a.rating;
+    if (sortBy === 'year') return (Number(b.yearPurchased) || 0) - (Number(a.yearPurchased) || 0);
+    if (sortBy === 'name') return a.name.localeCompare(b.name);
+    // default: newest
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 
-  // Reset page and slider to 1 when filters change
+  // Reset page and slider to 1 when filters or sort change
   useEffect(() => {
     setCurrentSlide(0);
     setCurrentPage(1);
-  }, [selectedFilters, viewMode, searchQuery]);
+  }, [selectedFilters, viewMode, searchQuery, sortBy]);
 
   // Derived arrays for UI
   const sliderHats = filteredHats.slice(0, 10); 
@@ -327,7 +334,7 @@ export default function Home() {
 
     const { data } = await supabase.from('hats').insert([dbHat] as any).select().single();
     if (data) {
-      const frontendHat = { ...dbHat, id: data.id, yearPurchased: data.year_purchased, isFavorite: data.is_favorite };
+      const frontendHat = { ...dbHat, id: data.id, yearPurchased: data.year_purchased, isFavorite: data.is_favorite, createdAt: data.created_at };
       setHats([frontendHat, ...hats]); 
     }
 
@@ -352,7 +359,7 @@ export default function Home() {
 
     const { data } = await supabase.from('hats').insert(dbHats as any).select();
     if (data) {
-      const frontendHats = data.map(h => ({ ...h, yearPurchased: h.year_purchased, isFavorite: h.is_favorite }));
+      const frontendHats = data.map(h => ({ ...h, yearPurchased: h.year_purchased, isFavorite: h.is_favorite, createdAt: h.created_at }));
       setHats([...frontendHats, ...hats]);
     }
 
@@ -388,7 +395,7 @@ export default function Home() {
       image: editingHat.image 
     };
 
-    const cleanedFrontendHat = { ...dbHat, id: editingHat.id, yearPurchased: dbHat.year_purchased, isFavorite: dbHat.is_favorite };
+    const cleanedFrontendHat = { ...dbHat, id: editingHat.id, yearPurchased: dbHat.year_purchased, isFavorite: dbHat.is_favorite, createdAt: editingHat.createdAt };
     setHats(hats.map(h => h.id === cleanedFrontendHat.id ? cleanedFrontendHat : h));
     if (randomHat && randomHat.id === cleanedFrontendHat.id) setRandomHat(cleanedFrontendHat);
     setEditingHat(null);
@@ -398,6 +405,18 @@ export default function Home() {
 
   const confirmDeleteHat = async () => {
     if (!hatToDelete) return;
+    
+    // 1. Storage Clean Up (Find hat image and delete it from bucket)
+    const hat = hats.find(h => h.id === hatToDelete);
+    if (hat && hat.image && !hat.image.includes('unsplash.com')) {
+      const pathParts = hat.image.split('/hat-photos/');
+      if (pathParts.length > 1) {
+        const filePath = pathParts[1];
+        await supabase.storage.from('hat-photos').remove([filePath]);
+      }
+    }
+
+    // 2. Database & UI Clean Up
     setHats(hats.filter(h => h.id !== hatToDelete));
     if (randomHat && randomHat.id === hatToDelete) setRandomHat(null);
     const idToDelete = hatToDelete;
@@ -547,6 +566,16 @@ export default function Home() {
               <button onClick={() => setViewMode('untagged')} className={`py-2 rounded-lg transition flex items-center justify-center gap-1 ${viewMode === 'untagged' ? 'bg-white dark:bg-slate-700 shadow text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>🏷️ Un</button>
             </div>
 
+            <div className="flex flex-col gap-1 pt-2 border-t dark:border-slate-800 transition-colors">
+              <label className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Sort By</label>
+              <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className="w-full bg-indigo-50 dark:bg-indigo-900/20 border-indigo-100 dark:border-indigo-800/50 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer dark:text-white transition-colors">
+                <option value="newest">Newest Added</option>
+                <option value="rating">Highest Rated</option>
+                <option value="year">Year (Newest to Oldest)</option>
+                <option value="name">Name (A-Z)</option>
+              </select>
+            </div>
+
             <div className="flex justify-between items-center border-b dark:border-slate-800 pb-2 pt-2 transition-colors">
               <h3 className="font-bold text-lg dark:text-white">Filters</h3>
               <button onClick={() => setIsCategoryModalOpen(true)} className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-bold bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1 rounded transition">⚙️ Edit</button>
@@ -568,6 +597,7 @@ export default function Home() {
               setSelectedFilters({ type: '', color: '', league: '', team: '', occasion: '', location: '' });
               setSearchQuery('');
               setViewMode('all');
+              setSortBy('newest');
             }} className="w-full text-xs text-red-500 dark:text-red-400 font-medium hover:underline text-center pt-2">Clear All</button>
           </section>
 
