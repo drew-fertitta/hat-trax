@@ -27,7 +27,7 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false); 
   
-  const [viewMode, setViewMode] = useState<'all' | 'favorites'>('all');
+  const [viewMode, setViewMode] = useState<'all' | 'favorites' | 'untagged'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string>>({
     type: '', color: '', league: '', team: '', occasion: '', location: ''
@@ -138,6 +138,11 @@ export default function Home() {
   const filteredHats = hats.filter(hat => {
     // 1. Check View Mode
     if (viewMode === 'favorites' && !hat.isFavorite) return false;
+    
+    if (viewMode === 'untagged') {
+      const isCompletelyUntagged = !hat.type && !hat.color && !hat.league && !hat.team && !hat.occasion && !hat.location;
+      if (!isCompletelyUntagged) return false;
+    }
     
     // 2. Check Search Query (Searches Name, Team, and League)
     if (searchQuery) {
@@ -501,9 +506,10 @@ export default function Home() {
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
             </div>
 
-            <div className="grid grid-cols-2 bg-slate-100 p-1 rounded-xl text-xs font-bold text-center">
-              <button onClick={() => setViewMode('all')} className={`py-2 rounded-lg transition ${viewMode === 'all' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}>All Hats</button>
-              <button onClick={() => setViewMode('favorites')} className={`py-2 rounded-lg transition flex items-center justify-center gap-1 ${viewMode === 'favorites' ? 'bg-white shadow text-red-500' : 'text-slate-500 hover:text-slate-800'}`}>❤️ Favorites</button>
+            <div className="grid grid-cols-3 bg-slate-100 p-1 rounded-xl text-xs font-bold text-center">
+              <button onClick={() => setViewMode('all')} className={`py-2 rounded-lg transition ${viewMode === 'all' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}>All</button>
+              <button onClick={() => setViewMode('favorites')} className={`py-2 rounded-lg transition flex items-center justify-center gap-1 ${viewMode === 'favorites' ? 'bg-white shadow text-red-500' : 'text-slate-500 hover:text-slate-800'}`}>❤️ Favs</button>
+              <button onClick={() => setViewMode('untagged')} className={`py-2 rounded-lg transition flex items-center justify-center gap-1 ${viewMode === 'untagged' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}>🏷️ Untagged</button>
             </div>
 
             <div className="flex justify-between items-center border-b pb-2 pt-2">
@@ -525,13 +531,16 @@ export default function Home() {
             <button onClick={() => {
               setSelectedFilters({ type: '', color: '', league: '', team: '', occasion: '', location: '' });
               setSearchQuery('');
+              setViewMode('all');
             }} className="w-full text-xs text-red-500 font-medium hover:underline text-center pt-2">Clear All Filters</button>
           </section>
 
           {/* Grid Inventory Cards Display */}
           <section className="md:col-span-3 space-y-6">
             <div className="flex justify-between items-center">
-              <h3 className="font-bold text-xl">{viewMode === 'favorites' ? '❤️ Favorite Hats' : 'Your Inventory'} ({filteredHats.length})</h3>
+              <h3 className="font-bold text-xl">
+                {viewMode === 'favorites' ? '❤️ Favorite Hats' : viewMode === 'untagged' ? '🏷️ Untagged Hats' : 'Your Inventory'} ({filteredHats.length})
+              </h3>
               <button onClick={() => setIsModalOpen(true)} className="bg-slate-900 hover:bg-slate-800 text-white text-sm font-bold py-2 px-4 rounded-lg shadow transition">+ Add New Hat</button>
             </div>
 
