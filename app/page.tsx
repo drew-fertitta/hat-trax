@@ -28,6 +28,7 @@ export default function Home() {
   const [isUploading, setIsUploading] = useState(false); 
   
   const [viewMode, setViewMode] = useState<'all' | 'favorites'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string>>({
     type: '', color: '', league: '', team: '', occasion: '', location: ''
   });
@@ -76,7 +77,7 @@ export default function Home() {
       
       if (catData && catData.length > 0) {
         const dbCategories: any = { ...EMPTY_CATEGORIES };
-        catData.forEach(c => { dbCategories[c.category_key] = c.options; });
+        catData.forEach(c => { dbCategories[c.category_key] = c.options || []; });
         setCategories(dbCategories);
       } else {
         setCategories(EMPTY_CATEGORIES);
@@ -135,14 +136,26 @@ export default function Home() {
 
   // --- FILTER & RANDOMIZER LOGIC ---
   const filteredHats = hats.filter(hat => {
+    // 1. Check View Mode
     if (viewMode === 'favorites' && !hat.isFavorite) return false;
+    
+    // 2. Check Search Query (Searches Name, Team, and League)
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const matchName = hat.name.toLowerCase().includes(q);
+      const matchTeam = (hat.team || '').toLowerCase().includes(q);
+      const matchLeague = (hat.league || '').toLowerCase().includes(q);
+      if (!matchName && !matchTeam && !matchLeague) return false;
+    }
+
+    // 3. Check Dropdown Filters
     return Object.keys(selectedFilters).every(key => {
       if (!selectedFilters[key]) return true;
       return (hat as any)[key] === selectedFilters[key];
     });
   });
 
-  useEffect(() => setCurrentSlide(0), [filteredHats.length, selectedFilters, viewMode]);
+  useEffect(() => setCurrentSlide(0), [filteredHats.length, selectedFilters, viewMode, searchQuery]);
 
   const pickRandomHat = () => {
     if (filteredHats.length === 0) return;
@@ -168,26 +181,41 @@ export default function Home() {
 
     for (const [formKey, catKey] of Object.entries(mappings)) {
       const typedValue = (formState[formKey] || '').toString().trim();
-      if (typedValue && !updatedCategories[catKey].includes(typedValue)) {
+      
+      // Safety check: ensure the category array exists
+      if (!updatedCategories[catKey]) {
+        updatedCategories[catKey] = [];
+      }
+
+      // Check if it exists (case insensitive)
+      const exists = updatedCategories[catKey].some((item: string) => item.toLowerCase() === typedValue.toLowerCase());
+
+      if (typedValue && !exists) {
         updatedCategories[catKey] = [...updatedCategories[catKey], typedValue];
         categoriesChanged = true;
         syncCategoryToDB(catKey, updatedCategories[catKey]);
       }
     }
-    if (categoriesChanged) setCategories(updatedCategories);
+    
+    if (categoriesChanged) {
+      setCategories(updatedCategories);
+    }
   };
 
   const handleAddCategoryItem = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCategoryValue.trim()) return;
-    const newOptions = [...categories[editingCategory], newCategoryValue.trim()];
+    
+    const currentOptions = categories[editingCategory] || [];
+    const newOptions = [...currentOptions, newCategoryValue.trim()];
+    
     setCategories({ ...categories, [editingCategory]: newOptions });
     syncCategoryToDB(editingCategory, newOptions);
     setNewCategoryValue('');
   };
 
   const handleRemoveCategoryItem = (itemToRemove: string) => {
-    const newOptions = categories[editingCategory].filter((item: string) => item !== itemToRemove);
+    const newOptions = (categories[editingCategory] || []).filter((item: string) => item !== itemToRemove);
     setCategories({ ...categories, [editingCategory]: newOptions });
     syncCategoryToDB(editingCategory, newOptions);
   };
@@ -459,7 +487,20 @@ export default function Home() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           
           {/* Filters Sidebar */}
-          <section className="bg-white p-6 rounded-2xl shadow-sm border space-y-4 h-fit">
+          <section className="bg-white p-6 rounded-2xl shadow-sm border space-y-5 h-fit">
+            
+            {/* Search Bar */}
+            <div className="relative">
+              <input 
+                type="text" 
+                placeholder="Search hats, teams, leagues..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full border rounded-xl p-3 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50"
+              />
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+            </div>
+
             <div className="grid grid-cols-2 bg-slate-100 p-1 rounded-xl text-xs font-bold text-center">
               <button onClick={() => setViewMode('all')} className={`py-2 rounded-lg transition ${viewMode === 'all' ? 'bg-white shadow text-indigo-600' : 'text-slate-500 hover:text-slate-800'}`}>All Hats</button>
               <button onClick={() => setViewMode('favorites')} className={`py-2 rounded-lg transition flex items-center justify-center gap-1 ${viewMode === 'favorites' ? 'bg-white shadow text-red-500' : 'text-slate-500 hover:text-slate-800'}`}>❤️ Favorites</button>
@@ -481,7 +522,10 @@ export default function Home() {
                 </div>
               );
             })}
-            <button onClick={() => setSelectedFilters({ type: '', color: '', league: '', team: '', occasion: '', location: '' })} className="w-full text-xs text-red-500 font-medium hover:underline text-center pt-2">Clear All Filters</button>
+            <button onClick={() => {
+              setSelectedFilters({ type: '', color: '', league: '', team: '', occasion: '', location: '' });
+              setSearchQuery('');
+            }} className="w-full text-xs text-red-500 font-medium hover:underline text-center pt-2">Clear All Filters</button>
           </section>
 
           {/* Grid Inventory Cards Display */}
