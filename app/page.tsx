@@ -162,6 +162,15 @@ export default function Home() {
     await supabase.auth.signOut();
   };
 
+  // --- DYNAMIC DROPDOWN SWEEP HELPER ---
+  // Captures database categories PLUS any ghost categories currently on hats
+  const getDropdownOptions = (pluralKey: string, singularKey: string) => {
+    const savedOptions = categories[pluralKey] || [];
+    const hatOptions = hats.map(h => h[singularKey]).filter(val => val && val.trim() !== '');
+    const uniqueSet = new Set([...savedOptions, ...hatOptions]);
+    return Array.from(uniqueSet).sort((a: string, b: string) => a.toLowerCase().localeCompare(b.toLowerCase()));
+  };
+
   // --- FILTER & PAGINATION LOGIC ---
   const filteredHats = hats.filter(hat => {
     if (viewMode === 'favorites' && !hat.isFavorite) return false;
@@ -192,7 +201,7 @@ export default function Home() {
   }, [selectedFilters, viewMode, searchQuery]);
 
   // Derived arrays for UI
-  const sliderHats = filteredHats.slice(0, 10); // Cap slider at 10 items to prevent browser crashing
+  const sliderHats = filteredHats.slice(0, 10); 
   const totalPages = Math.max(1, Math.ceil(filteredHats.length / ITEMS_PER_PAGE));
   const paginatedHats = filteredHats.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
@@ -544,12 +553,13 @@ export default function Home() {
             </div>
             {Object.keys(selectedFilters).map((categoryKey) => {
               const pluralKey = categoryKey === 'color' ? 'colors' : categoryKey + 's';
+              const options = getDropdownOptions(pluralKey, categoryKey);
               return (
                 <div key={categoryKey} className="flex flex-col gap-1">
                   <label className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">{categoryKey}</label>
                   <select value={selectedFilters[categoryKey]} onChange={(e) => setSelectedFilters({...selectedFilters, [categoryKey]: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-700 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer dark:text-white transition-colors">
                     <option value="">All {pluralKey}</option>
-                    {categories[pluralKey]?.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
+                    {options.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
                   </select>
                 </div>
               );
@@ -678,32 +688,32 @@ export default function Home() {
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Hat Type</label>
                     <input list="types-list" value={newHatForm.type} onChange={(e) => setNewHatForm({...newHatForm, type: e.target.value})} className="w-full border dark:border-slate-700 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none bg-white dark:bg-slate-800 dark:text-white transition-colors" placeholder="Type or select..." />
-                    <datalist id="types-list">{categories.types?.map((t: string) => <option key={t} value={t} />)}</datalist>
+                    <datalist id="types-list">{getDropdownOptions('types', 'type').map((t: string) => <option key={t} value={t} />)}</datalist>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Color</label>
                     <input list="colors-list" value={newHatForm.color} onChange={(e) => setNewHatForm({...newHatForm, color: e.target.value})} className="w-full border dark:border-slate-700 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none bg-white dark:bg-slate-800 dark:text-white transition-colors" placeholder="Type or select..." />
-                    <datalist id="colors-list">{categories.colors?.map((c: string) => <option key={c} value={c} />)}</datalist>
+                    <datalist id="colors-list">{getDropdownOptions('colors', 'color').map((c: string) => <option key={c} value={c} />)}</datalist>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">League</label>
                     <input list="leagues-list" value={newHatForm.league} onChange={(e) => setNewHatForm({...newHatForm, league: e.target.value})} className="w-full border dark:border-slate-700 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none bg-white dark:bg-slate-800 dark:text-white transition-colors" placeholder="Type or select..." />
-                    <datalist id="leagues-list">{categories.leagues?.map((l: string) => <option key={l} value={l} />)}</datalist>
+                    <datalist id="leagues-list">{getDropdownOptions('leagues', 'league').map((l: string) => <option key={l} value={l} />)}</datalist>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Team</label>
                     <input list="teams-list" value={newHatForm.team} onChange={(e) => setNewHatForm({...newHatForm, team: e.target.value})} className="w-full border dark:border-slate-700 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none bg-white dark:bg-slate-800 dark:text-white transition-colors" placeholder="Type or select..." />
-                    <datalist id="teams-list">{categories.teams?.map((t: string) => <option key={t} value={t} />)}</datalist>
+                    <datalist id="teams-list">{getDropdownOptions('teams', 'team').map((t: string) => <option key={t} value={t} />)}</datalist>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Occasion</label>
                     <input list="occasions-list" value={newHatForm.occasion} onChange={(e) => setNewHatForm({...newHatForm, occasion: e.target.value})} className="w-full border dark:border-slate-700 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none bg-white dark:bg-slate-800 dark:text-white transition-colors" placeholder="Type or select..." />
-                    <datalist id="occasions-list">{categories.occasions?.map((o: string) => <option key={o} value={o} />)}</datalist>
+                    <datalist id="occasions-list">{getDropdownOptions('occasions', 'occasion').map((o: string) => <option key={o} value={o} />)}</datalist>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Location</label>
                     <input list="locations-list" value={newHatForm.location} onChange={(e) => setNewHatForm({...newHatForm, location: e.target.value})} className="w-full border dark:border-slate-700 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none bg-white dark:bg-slate-800 dark:text-white transition-colors" placeholder="Type or select..." />
-                    <datalist id="locations-list">{categories.locations?.map((l: string) => <option key={l} value={l} />)}</datalist>
+                    <datalist id="locations-list">{getDropdownOptions('locations', 'location').map((l: string) => <option key={l} value={l} />)}</datalist>
                   </div>
                 </div>
               </form>
@@ -754,32 +764,32 @@ export default function Home() {
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Hat Type</label>
                     <input list="edit-types-list" value={editingHat.type || ''} onChange={(e) => setEditingHat({...editingHat, type: e.target.value})} className="w-full border dark:border-slate-700 rounded-lg p-2 bg-white dark:bg-slate-800 dark:text-white transition-colors" />
-                    <datalist id="edit-types-list">{categories.types?.map((t: string) => <option key={t} value={t} />)}</datalist>
+                    <datalist id="edit-types-list">{getDropdownOptions('types', 'type').map((t: string) => <option key={t} value={t} />)}</datalist>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Color</label>
                     <input list="edit-colors-list" value={editingHat.color || ''} onChange={(e) => setEditingHat({...editingHat, color: e.target.value})} className="w-full border dark:border-slate-700 rounded-lg p-2 bg-white dark:bg-slate-800 dark:text-white transition-colors" />
-                    <datalist id="edit-colors-list">{categories.colors?.map((c: string) => <option key={c} value={c} />)}</datalist>
+                    <datalist id="edit-colors-list">{getDropdownOptions('colors', 'color').map((c: string) => <option key={c} value={c} />)}</datalist>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">League</label>
                     <input list="edit-leagues-list" value={editingHat.league || ''} onChange={(e) => setEditingHat({...editingHat, league: e.target.value})} className="w-full border dark:border-slate-700 rounded-lg p-2 bg-white dark:bg-slate-800 dark:text-white transition-colors" />
-                    <datalist id="edit-leagues-list">{categories.leagues?.map((l: string) => <option key={l} value={l} />)}</datalist>
+                    <datalist id="edit-leagues-list">{getDropdownOptions('leagues', 'league').map((l: string) => <option key={l} value={l} />)}</datalist>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Team</label>
                     <input list="edit-teams-list" value={editingHat.team || ''} onChange={(e) => setEditingHat({...editingHat, team: e.target.value})} className="w-full border dark:border-slate-700 rounded-lg p-2 bg-white dark:bg-slate-800 dark:text-white transition-colors" />
-                    <datalist id="edit-teams-list">{categories.teams?.map((t: string) => <option key={t} value={t} />)}</datalist>
+                    <datalist id="edit-teams-list">{getDropdownOptions('teams', 'team').map((t: string) => <option key={t} value={t} />)}</datalist>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Occasion</label>
                     <input list="edit-occasions-list" value={editingHat.occasion || ''} onChange={(e) => setEditingHat({...editingHat, occasion: e.target.value})} className="w-full border dark:border-slate-700 rounded-lg p-2 bg-white dark:bg-slate-800 dark:text-white transition-colors" />
-                    <datalist id="edit-occasions-list">{categories.occasions?.map((o: string) => <option key={o} value={o} />)}</datalist>
+                    <datalist id="edit-occasions-list">{getDropdownOptions('occasions', 'occasion').map((o: string) => <option key={o} value={o} />)}</datalist>
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Location</label>
                     <input list="edit-locations-list" value={editingHat.location || ''} onChange={(e) => setEditingHat({...editingHat, location: e.target.value})} className="w-full border dark:border-slate-700 rounded-lg p-2 bg-white dark:bg-slate-800 dark:text-white transition-colors" />
-                    <datalist id="edit-locations-list">{categories.locations?.map((l: string) => <option key={l} value={l} />)}</datalist>
+                    <datalist id="edit-locations-list">{getDropdownOptions('locations', 'location').map((l: string) => <option key={l} value={l} />)}</datalist>
                   </div>
                 </div>
               </form>
