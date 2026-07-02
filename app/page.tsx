@@ -13,6 +13,8 @@ const EMPTY_HAT_FORM = {
   name: '', yearPurchased: '', type: '', color: '', league: '', team: '', occasion: '', location: '', rating: 0, isFavorite: false
 };
 
+const ITEMS_PER_PAGE = 12;
+
 export default function Home() {
   // Auth States
   const [user, setUser] = useState<any>(null);
@@ -27,14 +29,16 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false); 
   
-  // Theme State
+  // Theme & View States
   const [isDarkMode, setIsDarkMode] = useState(false);
-
   const [viewMode, setViewMode] = useState<'all' | 'favorites' | 'untagged'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilters, setSelectedFilters] = useState<Record<string, string>>({
     type: '', color: '', league: '', team: '', occasion: '', location: ''
   });
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newHatForm, setNewHatForm] = useState(EMPTY_HAT_FORM);
@@ -158,9 +162,8 @@ export default function Home() {
     await supabase.auth.signOut();
   };
 
-  // --- FILTER & RANDOMIZER LOGIC ---
+  // --- FILTER & PAGINATION LOGIC ---
   const filteredHats = hats.filter(hat => {
-    // 1. Check View Mode
     if (viewMode === 'favorites' && !hat.isFavorite) return false;
     
     if (viewMode === 'untagged') {
@@ -168,7 +171,6 @@ export default function Home() {
       if (!isCompletelyUntagged) return false;
     }
     
-    // 2. Check Search Query
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       const matchName = hat.name.toLowerCase().includes(q);
@@ -177,14 +179,22 @@ export default function Home() {
       if (!matchName && !matchTeam && !matchLeague) return false;
     }
 
-    // 3. Check Dropdown Filters
     return Object.keys(selectedFilters).every(key => {
       if (!selectedFilters[key]) return true;
       return (hat as any)[key] === selectedFilters[key];
     });
   });
 
-  useEffect(() => setCurrentSlide(0), [filteredHats.length, selectedFilters, viewMode, searchQuery]);
+  // Reset page and slider to 1 when filters change
+  useEffect(() => {
+    setCurrentSlide(0);
+    setCurrentPage(1);
+  }, [selectedFilters, viewMode, searchQuery]);
+
+  // Derived arrays for UI
+  const sliderHats = filteredHats.slice(0, 10); // Cap slider at 10 items to prevent browser crashing
+  const totalPages = Math.max(1, Math.ceil(filteredHats.length / ITEMS_PER_PAGE));
+  const paginatedHats = filteredHats.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
 
   const pickRandomHat = () => {
     if (filteredHats.length === 0) return;
@@ -452,10 +462,10 @@ export default function Home() {
           </div>
         </header>
 
-        {/* INVENTORY SLIDER */}
-        {filteredHats.length > 0 && (
+        {/* INVENTORY SLIDER (CAPPED AT 10 ITEMS) */}
+        {sliderHats.length > 0 && (
           <section className="relative w-full h-64 md:h-96 bg-slate-900 dark:bg-black rounded-2xl overflow-hidden shadow-xl group transition-colors">
-            {filteredHats.map((hat, index) => (
+            {sliderHats.map((hat, index) => (
               <div key={hat.id} className={`absolute inset-0 transition-opacity duration-700 ease-in-out bg-slate-950/40 backdrop-blur-md ${index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}>
                 <img src={hat.image} alt={hat.name} className="w-full h-full object-contain relative z-10" />
                 <img src={hat.image} alt="" className="absolute inset-0 w-full h-full object-cover opacity-25 blur-sm select-none pointer-events-none" />
@@ -473,12 +483,12 @@ export default function Home() {
                 </div>
               </div>
             ))}
-            {filteredHats.length > 1 && (
+            {sliderHats.length > 1 && (
               <>
-                <button onClick={() => setCurrentSlide(prev => prev === 0 ? filteredHats.length - 1 : prev - 1)} className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white p-3 rounded-full backdrop-blur-md transition z-20 opacity-0 group-hover:opacity-100">◀</button>
-                <button onClick={() => setCurrentSlide(prev => prev === filteredHats.length - 1 ? 0 : prev + 1)} className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white p-3 rounded-full backdrop-blur-md transition z-20 opacity-0 group-hover:opacity-100">▶</button>
+                <button onClick={() => setCurrentSlide(prev => prev === 0 ? sliderHats.length - 1 : prev - 1)} className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white p-3 rounded-full backdrop-blur-md transition z-20 opacity-0 group-hover:opacity-100">◀</button>
+                <button onClick={() => setCurrentSlide(prev => prev === sliderHats.length - 1 ? 0 : prev + 1)} className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/20 hover:bg-white/40 text-white p-3 rounded-full backdrop-blur-md transition z-20 opacity-0 group-hover:opacity-100">▶</button>
                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
-                  {filteredHats.slice(0, 10).map((_, idx) => (
+                  {sliderHats.map((_, idx) => (
                     <button key={idx} onClick={() => setCurrentSlide(idx)} className={`w-2 h-2 rounded-full transition ${idx === currentSlide ? 'bg-white scale-125' : 'bg-white/40 hover:bg-white/80'}`} />
                   ))}
                 </div>
@@ -491,7 +501,7 @@ export default function Home() {
         {randomHat && (
           <div className="bg-indigo-50 dark:bg-indigo-900/20 border-2 border-indigo-200 dark:border-indigo-800 rounded-2xl p-6 flex flex-col md:flex-row items-center gap-6 relative animate-in fade-in zoom-in duration-300 transition-colors">
             <button onClick={() => setRandomHat(null)} className="absolute top-4 right-4 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 text-xl font-bold">✕</button>
-            <img src={randomHat.image} alt={randomHat.name} loading="lazy" className="w-32 h-32 object-cover rounded-xl shadow dark:shadow-black/50" />
+            <img src={randomHat.image} alt={randomHat.name} className="w-32 h-32 object-cover rounded-xl shadow dark:shadow-black/50" />
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/40 px-2 py-1 rounded">Today's Pick</span>
@@ -514,7 +524,7 @@ export default function Home() {
             <div className="relative">
               <input 
                 type="text" 
-                placeholder="Search hats, teams, leagues..." 
+                placeholder="Search hats, teams..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full border dark:border-slate-700 rounded-xl p-3 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-slate-50 dark:bg-slate-800 dark:text-white transition-colors"
@@ -525,7 +535,7 @@ export default function Home() {
             <div className="grid grid-cols-3 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-bold text-center transition-colors">
               <button onClick={() => setViewMode('all')} className={`py-2 rounded-lg transition ${viewMode === 'all' ? 'bg-white dark:bg-slate-700 shadow text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>All</button>
               <button onClick={() => setViewMode('favorites')} className={`py-2 rounded-lg transition flex items-center justify-center gap-1 ${viewMode === 'favorites' ? 'bg-white dark:bg-slate-700 shadow text-red-500 dark:text-red-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>❤️ Favs</button>
-              <button onClick={() => setViewMode('untagged')} className={`py-2 rounded-lg transition flex items-center justify-center gap-1 ${viewMode === 'untagged' ? 'bg-white dark:bg-slate-700 shadow text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>🏷️ Untagged</button>
+              <button onClick={() => setViewMode('untagged')} className={`py-2 rounded-lg transition flex items-center justify-center gap-1 ${viewMode === 'untagged' ? 'bg-white dark:bg-slate-700 shadow text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>🏷️ Un</button>
             </div>
 
             <div className="flex justify-between items-center border-b dark:border-slate-800 pb-2 pt-2 transition-colors">
@@ -551,7 +561,7 @@ export default function Home() {
             }} className="w-full text-xs text-red-500 dark:text-red-400 font-medium hover:underline text-center pt-2">Clear All</button>
           </section>
 
-          {/* Grid Inventory Display */}
+          {/* PAGINATED Grid Inventory Display */}
           <section className="md:col-span-3 space-y-6">
             <div className="flex justify-between items-center">
               <h3 className="font-bold text-xl dark:text-white">
@@ -565,34 +575,59 @@ export default function Home() {
                 <p className="text-slate-400 dark:text-slate-500">No hats found matching your selections.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredHats.map((hat) => (
-                  <div key={hat.id} onClick={() => setEditingHat(hat)} className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border dark:border-slate-800 overflow-hidden hover:shadow-md hover:ring-2 hover:ring-indigo-400 transition flex flex-col relative cursor-pointer group will-change-transform">
-                    <button onClick={(e) => toggleFavorite(hat.id, e)} className={`absolute top-3 left-3 rounded-full w-8 h-8 flex items-center justify-center text-sm backdrop-blur-sm transition z-10 shadow-sm ${hat.isFavorite ? 'bg-white dark:bg-slate-800 scale-110' : 'bg-white/80 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-700 opacity-60 group-hover:opacity-100 sm:opacity-85'}`}>
-                      {hat.isFavorite ? '❤️' : '🖤'}
-                    </button>
-                    <button onClick={(e) => { e.stopPropagation(); setHatToDelete(hat.id); }} className="absolute top-3 right-3 bg-slate-900/40 dark:bg-slate-900/70 hover:bg-red-500 dark:hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold backdrop-blur-sm transition z-10 opacity-0 group-hover:opacity-100 sm:opacity-100">✕</button>
-                    <img src={hat.image} alt={hat.name} loading="lazy" className="w-full h-48 object-cover bg-slate-100 dark:bg-slate-800" />
-                    <div className="p-4 space-y-2 flex-1 flex flex-col">
-                      <div className="flex justify-between items-start">
-                        <div className="space-y-0.5">
-                          <h4 className="font-bold text-lg leading-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition dark:text-white">{hat.name}</h4>
-                          {hat.rating > 0 && <div className="text-xs text-amber-500 dark:text-amber-400 flex font-serif tracking-tighter">{'★'.repeat(hat.rating)}{'☆'.repeat(5 - hat.rating)}</div>}
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {paginatedHats.map((hat) => (
+                    <div key={hat.id} onClick={() => setEditingHat(hat)} className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border dark:border-slate-800 overflow-hidden hover:shadow-md hover:ring-2 hover:ring-indigo-400 transition flex flex-col relative cursor-pointer group">
+                      <button onClick={(e) => toggleFavorite(hat.id, e)} className={`absolute top-3 left-3 rounded-full w-8 h-8 flex items-center justify-center text-sm backdrop-blur-sm transition z-10 shadow-sm ${hat.isFavorite ? 'bg-white dark:bg-slate-800 scale-110' : 'bg-white/80 dark:bg-slate-800/80 hover:bg-white dark:hover:bg-slate-700 opacity-60 group-hover:opacity-100 sm:opacity-85'}`}>
+                        {hat.isFavorite ? '❤️' : '🖤'}
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); setHatToDelete(hat.id); }} className="absolute top-3 right-3 bg-slate-900/40 dark:bg-slate-900/70 hover:bg-red-500 dark:hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center font-bold backdrop-blur-sm transition z-10 opacity-0 group-hover:opacity-100 sm:opacity-100">✕</button>
+                      <img src={hat.image} alt={hat.name} className="w-full h-48 object-cover bg-slate-100 dark:bg-slate-800" />
+                      <div className="p-4 space-y-2 flex-1 flex flex-col">
+                        <div className="flex justify-between items-start">
+                          <div className="space-y-0.5">
+                            <h4 className="font-bold text-lg leading-tight group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition dark:text-white">{hat.name}</h4>
+                            {hat.rating > 0 && <div className="text-xs text-amber-500 dark:text-amber-400 flex font-serif tracking-tighter">{'★'.repeat(hat.rating)}{'☆'.repeat(5 - hat.rating)}</div>}
+                          </div>
+                          {hat.yearPurchased && <span className="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-slate-600 dark:text-slate-300 font-medium whitespace-nowrap ml-2">{hat.yearPurchased}</span>}
                         </div>
-                        {hat.yearPurchased && <span className="text-xs bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-slate-600 dark:text-slate-300 font-medium whitespace-nowrap ml-2">{hat.yearPurchased}</span>}
-                      </div>
-                      <div className="flex flex-wrap gap-1 mt-auto pt-2">
-                        {hat.type && <span className="text-[11px] bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full font-medium">{hat.type}</span>}
-                        {hat.team && <span className="text-[11px] bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-full font-medium">{hat.team}</span>}
-                        {hat.league && <span className="text-[11px] bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-2 py-0.5 rounded-full font-medium">{hat.league}</span>}
-                        {hat.color && <span className="text-[11px] bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-2 py-0.5 rounded-full font-medium">{hat.color}</span>}
-                        {hat.occasion && <span className="text-[11px] bg-pink-50 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400 px-2 py-0.5 rounded-full font-medium">{hat.occasion}</span>}
-                        {hat.location && <span className="text-[11px] bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full font-medium">{hat.location}</span>}
+                        <div className="flex flex-wrap gap-1 mt-auto pt-2">
+                          {hat.type && <span className="text-[11px] bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full font-medium">{hat.type}</span>}
+                          {hat.team && <span className="text-[11px] bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-full font-medium">{hat.team}</span>}
+                          {hat.league && <span className="text-[11px] bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-2 py-0.5 rounded-full font-medium">{hat.league}</span>}
+                          {hat.color && <span className="text-[11px] bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-2 py-0.5 rounded-full font-medium">{hat.color}</span>}
+                          {hat.occasion && <span className="text-[11px] bg-pink-50 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400 px-2 py-0.5 rounded-full font-medium">{hat.occasion}</span>}
+                          {hat.location && <span className="text-[11px] bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full font-medium">{hat.location}</span>}
+                        </div>
                       </div>
                     </div>
+                  ))}
+                </div>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex justify-center items-center gap-4 mt-8 pt-4 border-t dark:border-slate-800 transition-colors">
+                    <button 
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="px-4 py-2 bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-lg shadow-sm font-semibold text-sm disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                    >
+                      ◀ Prev
+                    </button>
+                    <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <button 
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-4 py-2 bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-lg shadow-sm font-semibold text-sm disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                    >
+                      Next ▶
+                    </button>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
           </section>
         </div>
